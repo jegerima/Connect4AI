@@ -13,6 +13,9 @@ import java.awt.Shape;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -28,17 +31,18 @@ import javax.swing.SwingUtilities;
 public class MainBoard extends javax.swing.JFrame {
 
     private GridLayout BOARD;
-    private boolean player = false;
+    private boolean player = true;
     private boolean playerYellow = true;
     private HashMap<String,TokenView> hash_tokens;
     private String[][] matrix;
     private int[][] aiboard;
     private int columnMoves[];
+    private int DEFAULT_DEPTH = 2;
     
     public static int BOARD_WIDTH = 8;
     public static int BOARD_HEIGHT = 8;
     
-    static final int MAX_DEPTH = 8;
+    //static final int MAX_DEPTH = 8;
     
     public final byte NOBODY = 0;
     public final byte PLAYER = 1;
@@ -116,6 +120,9 @@ public class MainBoard extends javax.swing.JFrame {
                 aiboard[i][j] = 0;
             }
         }
+        for (int i = 0; i < BOARD_HEIGHT; i++){
+            columnMoves[i] = 0;
+        }
         refreshBoard();
         System.out.println("CleanBoard performed");
     }
@@ -145,41 +152,26 @@ public class MainBoard extends javax.swing.JFrame {
     private void runPlayerMove(TokenView tv){
         //TokenView tv = hash_tokens.get(xy);
         tv.setColorInGame(getPlayerColor());
+        columnMoves[tv.getYindex()] = columnMoves[tv.getYindex()]+1;
         System.out.println("Final Heuristic Player: "+getHeuristicValue(tv.getYindex(), player));
         player = !player;
         System.out.println("Player: Xindex: "+tv.getXindex()+" | Yindex: "+tv.getYindex());
         aiboard[tv.getXindex()][tv.getYindex()] = 1;
-        columnMoves[tv.getYindex()] = columnMoves[tv.getYindex()]+1;
         refreshBoard();
     }
     
     private void runAIMove(TokenView tv){
         tv.setColorInGame(getAIColor());
+        columnMoves[tv.getYindex()] = columnMoves[tv.getYindex()]+1;
         System.out.println("AI: Final Heuristic AI: "+getHeuristicValue(tv.getYindex(), player));
         player = !player;
         System.out.println("Xindex: "+tv.getXindex()+" | Yindex: "+tv.getYindex());
         aiboard[tv.getXindex()][tv.getYindex()] = -1;
-        columnMoves[tv.getYindex()] = columnMoves[tv.getYindex()]+1;
         refreshBoard();
     }
     
     //**************************************************
-    
-    private TokenView testAIMove(){
-        int x = 0;
-        int y = 0;
-        double val = 0.0;
-        for(int i = 0; i< BOARD_HEIGHT; i++){
-            double tmp = alphabeta(4, Integer.MAX_VALUE, Integer.MIN_VALUE, player, i);
-            if(tmp>val){
-                x = (BOARD_HEIGHT-1) - columnMoves[i];
-                y = i;
-            }
-        }
-        System.out.println("Token maximixed id: "+x+y+"");
-        return hash_tokens.get(""+x+y+"");
-    }
-    
+        
     private void makePlayerMove(int column){
         int row = (BOARD_HEIGHT-1)-columnMoves[column];
         aiboard[row][column] = 1;
@@ -195,14 +187,14 @@ public class MainBoard extends javax.swing.JFrame {
     }
     
     private void undoPlayerMove(int column){
-        int row = (BOARD_HEIGHT-1)-columnMoves[column];
+        int row = (BOARD_HEIGHT)-columnMoves[column];
         aiboard[row][column] = 0;
         columnMoves[column] = columnMoves[column] - 1;
         System.out.println("Undo player move in: ("+row+","+column+")");
     }
     
     private void undoAIMove(int column){
-        int row = (BOARD_HEIGHT-1)-columnMoves[column];
+        int row = (BOARD_HEIGHT)-columnMoves[column];
         aiboard[row][column] = 0;
         columnMoves[column] = columnMoves[column] - 1;
         System.out.println("Undo AI move in: ("+row+","+column+")");
@@ -240,12 +232,24 @@ public class MainBoard extends javax.swing.JFrame {
         return n_tokens;
     }
     
-    int getHeuristicValue(int column, boolean player){
-        int val = player?1:-1;
-        int x = (BOARD_HEIGHT-1)-columnMoves[column];    //Row
-        int y = column;                 //Column
+    double getHeuristicValue(int column, boolean player){
+        //int val = player?1:-1;
+        int tmpx = (BOARD_HEIGHT)-columnMoves[column];    //Row
+        final int y = column;                 //Column
+        try{
+        int val = player?-1:1;
         
-        System.out.println("Position: ("+x+","+y+")");
+        //System.out.println(columnMoves[column]);
+        
+        if(tmpx==8 && player)
+            tmpx =7;
+        else if(tmpx==8) return 0;
+        
+        final int x = tmpx;
+        
+        
+                
+        //System.out.println("Position: ("+x+","+y+"), Player: "+player);
         
         int hlv_p = 0;      //Horizontal left value
         int hlv_n = 0;
@@ -267,6 +271,10 @@ public class MainBoard extends javax.swing.JFrame {
         int nwv_p = 0;      //Left Down Corner
         int nwv_n = 0;
         
+        int hwl = 0;
+        int hwr = 0;
+        int vwd = 0;
+        
         //Right
         if(y<(BOARD_WIDTH-1)){
             boolean pro = false;    //A favor
@@ -275,7 +283,8 @@ public class MainBoard extends javax.swing.JFrame {
                 if(i>=(BOARD_WIDTH-1))break;
                                 
                 if(aiboard[x][i+1]==0){        //Nobody has played that position
-                    break;
+                    //break;
+                    hwr++;
                 }else if(aiboard[x][i+1]==val){
                     if(against)break;
                     pro = true;
@@ -296,7 +305,8 @@ public class MainBoard extends javax.swing.JFrame {
                 if((i-1)<0)break;
                                 
                 if(aiboard[x][i-1]==0){        //Nobody has played that position
-                    break;
+                    //break;
+                    hwl++;
                 }else if(aiboard[x][i-1]==val){
                     if(against)break;
                     pro = true;
@@ -317,7 +327,8 @@ public class MainBoard extends javax.swing.JFrame {
                 if(i>=(BOARD_WIDTH-1))break;
                                 
                 if(aiboard[i+1][column]==0){        //Nobody has played that position
-                    break;
+                    //break;
+                    vwd++;
                 }else if(aiboard[i+1][column]==val){
                     if(against)break;
                     pro = true;
@@ -443,39 +454,203 @@ public class MainBoard extends javax.swing.JFrame {
                 j--;
             }
         }
+            
+        /*
+        int ah_p1 = 0;
+        int ah_p2 = 0;
+        int ah_p3 = 0;
         
-        System.out.println("Horizontal: "+(hlv_p+hrv_p)+"|"+(hlv_n+hrv_n));
-//        System.out.println("Vertical:"+vuv_p+"+"+vdv_p+"|"+vuv_n+"+"+vdv_n);
-        System.out.println("Vertical: "+vdv_p+"|"+vdv_n);
-        System.out.println("Diag. princ: "+(nev_p+swv_p)+"|"+(nev_n+swv_n));
-        System.out.println("Otra diagonal: "+(sev_p+nwv_p)+"|"+(sev_n+nwv_n));      
+        int hh_p = hlv_p+hrv_p;
+        int vh_p = vuv_p+vdv_p;
+        int od_p = nev_p+swv_p;
+        int md_p = sev_p+nwv_p;
         
+        if(hh_p==1) ah_p1++;
+        if(vh_p==1) ah_p1++;
+        if(od_p==1) ah_p1++;
+        if(md_p==1) ah_p1++;
+        
+        if(hh_p==2) ah_p2++;
+        if(vh_p==2) ah_p2++;
+        if(od_p==2) ah_p2++;
+        if(md_p==2) ah_p2++;
+                
+        if(hh_p==3) ah_p3++;
+        if(vh_p==3) ah_p3++;
+        if(od_p==3) ah_p3++;
+        if(md_p==3) ah_p3++;
+        */
+                
         int max = Math.max((hlv_p+hrv_p), (vuv_p+vdv_p));
-        //System.out.println("Max1: "+max);
         max = Math.max(max, (nev_p+swv_p));
-        //System.out.println("Max2: "+max);
         max = Math.max(max, (sev_p+nwv_p));
         
+        /*
+        int ah_n1 = 0;
+        int ah_n2 = 0;
+        int ah_n3 = 0;
+        
+        int hh_n = hlv_n+hrv_n;
+        int vh_n = vuv_n+vdv_n;
+        int od_n = nev_n+swv_n;
+        int md_n = sev_n+nwv_n;
+        
+        if(hh_n==1) ah_n1++;
+        if(vh_n==1) ah_n1++;
+        if(od_n==1) ah_n1++;
+        if(md_n==1) ah_n1++;
+        
+        if(hh_n==2) ah_n2++;
+        if(vh_n==2) ah_n2++;
+        if(od_n==2) ah_n2++;
+        if(md_n==2) ah_n2++;
+                
+        if(hh_n==3) ah_n3++;
+        if(vh_n==3) ah_n3++;
+        if(od_n==3) ah_n3++;
+        if(md_n==3) ah_n3++;
+        */
+        
+        
         int min = Math.min((hlv_n+hrv_n),(vuv_n+vdv_n));
-        //System.out.println("Min1: "+min);
         min = Math.min(min,(nev_n+swv_n));
-        //System.out.println("Min2: "+min);
         min = Math.min(min,(sev_n+nwv_n));
         
-        System.out.println("MaxF: "+max);
-        System.out.println("MinF: "+min);
-                
-        if(Math.abs(max)>Math.abs(min))
-            return max;
-        if(Math.abs(max)<Math.abs(min))
-            return min;
+        System.out.println("MaxF: "+max + "|MinF: "+min);
         
-        return (new Random()).nextBoolean()? max:min;
+        double extraAI = 0.0;
+        double extraPlayer = 0.0;
+               
+        if(player){ //Computador
+            //if(max == 3) return 500;
+            extraAI = 0.5;
+        }else{
+            //if(min ==3) return 500;
+            extraPlayer = -0.5;
+        }
+        
+        double fact1 = 1.0 + extraAI;
+        double fact2 = 1.0 + extraPlayer;
+        
+        if(max == 3 || min ==-3){
+            System.out.println("WTF");
+            System.out.println("Horizontal: "+(hlv_p+hrv_p)+"|"+(hlv_n+hrv_n));
+            System.out.println("Vertical: "+vdv_p+"|"+vdv_n);
+            System.out.println("Diag. princ: "+(nev_p+swv_p)+"|"+(nev_n+swv_n));
+            System.out.println("Otra diagonal: "+(sev_p+nwv_p)+"|"+(sev_n+nwv_n)); 
+            if(max==3) fact1 = fact1*2.0;
+            if(min == -3) fact2 = fact2*2.0;
+            
+            //if(max == 3 && min ==-3)
+            //    return 500;
+            
+            if(max == 3)
+                return 500+DEFAULT_DEPTH+1;
+            if(min == -3)
+                return 500+DEFAULT_DEPTH;
+        }
+        
+        
+        
+        System.out.println(boardString());
+
+        return ((double)max*fact1 + Math.abs((double)min*fact2)); //+ hwl + hwr + vwd;
+                        
+        }catch(Exception e){
+            System.out.println("Excepcion en getHeuristicValue ("+tmpx+","+y+")");
+            e.printStackTrace();
+        }
+        return 0;
+        
+    }
+    
+    private TokenView testAIMove(){
+        double MAX = 500;
+        double MIN = -500;
+        int x = 7;
+        int y = 0;
+        double val = Double.MAX_VALUE;
+        double maxval = 500;
+        double values[] = new double[8];
+        double hs[] = new double [8];
+        
+        ArrayList<String> l_values = new ArrayList<>();
+        ArrayList<String> l = new ArrayList<>();
+        
+        ArrayList<IDValue> ab_h = new ArrayList<>();
+        ArrayList<IDValue> c_h = new ArrayList<>();
+        
+        for(int i = 0; i< BOARD_HEIGHT; i++){
+            makeAIMove(i); System.out.println("*********************************");
+            double tmp = Math.abs(alphabeta(DEFAULT_DEPTH, MAX, MIN, player, i));
+            hs[i] = getHeuristicValue(i, true)+0.1;
+            undoAIMove(i); System.out.println("*********************************");
+            //double tmp = alphabeta(2, -3, 3, player, i);
+            System.out.println("=======================================");
+            System.out.println("tmp:"+i+" "+tmp+" | value:"+val);
+            System.out.println("=======================================");
+            values[i] = (tmp);
+            
+            
+            
+            x = (BOARD_HEIGHT-1) - columnMoves[i];
+            y = i;
+            
+            //ab_h.add(new IDValue(x+y+"", tmp));
+            //c_h.add(new IDValue(x+y+"", hs[i]));
+            
+            
+            
+            if(tmp > maxval){
+                l.clear();
+                maxval = tmp;
+                l_values.add(""+x+y+"");
+            }
+                
+            if(val == tmp){
+                l.add(""+x+y+"");
+            }
+            
+            if(tmp < val){
+                l.clear();
+                //x = (BOARD_HEIGHT-1) - columnMoves[i];
+                //y = i;
+                val = (tmp);
+                l.add(""+x+y+"");
+            }
+        }
+        
+        System.out.println("Token maximixed id: "+x+y+"");
+        
+        //Collections.sort(l);
+        
+        
+        for(int w = 0; w<8;w++){
+            System.out.println(values[w] + "|"+ hs[w]);
+        }
+        
+        
+        
+        for(int w = 0; w<8;w++){
+            if(hs[w]>values[w])
+                return hash_tokens.get(((BOARD_HEIGHT-1) - columnMoves[w])+""+w);
+        }
+        
+        if(l_values.size()>0){
+            System.out.println(l_values.size());
+            return hash_tokens.get(l_values.get(Math.abs(new Random().nextInt())%l_values.size()));
+        }
+        
+        System.out.println("size:"+l.size());
+        int index = Math.abs(new Random().nextInt())%l.size();
+        System.out.println("index: "+index+" size:"+l.size());
+        //return hash_tokens.get(""+x+y+"");
+        System.out.println(l.get(index));
+        return hash_tokens.get(l.get(index));
     }
     
     
-    
-    double alphabeta(int depth, double alpha, double beta, boolean maximizingPlayer, int col) {
+    double alphabeta(int depth, double alpha, double beta, boolean maximizingAI, int col) {
           //boolean hasWinner = board.hasWinner();
           boolean hasWinner = false;
           
@@ -507,35 +682,81 @@ public class MainBoard extends javax.swing.JFrame {
              // steps.
              return (score / (MAX_DEPTH - depth + 1));
               */
-              return getHeuristicValue(col, player);
+
+              double h = getHeuristicValue(col, maximizingAI);
+              System.out.println("RETURNED h: "+h+ " for ("+(8-columnMoves[col])+","+col+") | MaximizingAI: "+maximizingAI );
+              return h;
          }
 
-         if (maximizingPlayer) {
+         double lastAlpha = alpha;
+         double lastBeta = beta;
+         
+         if (maximizingAI) {
+             double currentAlpha = 0;
              for (int column = 0; column < BOARD_WIDTH; column++) {
                  if (isAIValidMove(column)) {
+                     /*
+                     double currentHeuristic = Math.abs(getHeuristicValue(column, true));
+                     if(currentHeuristic>=alpha){
+                         return currentHeuristic;
+                     }
+                     */
+                     
                      makeAIMove(column);
-                     alpha = Math.max(alpha, alphabeta(depth-1, alpha, beta, false,col));
+                     double newAlpha = Math.abs(alphabeta(depth-1, alpha, beta,false ,column));
+                     //double lastAlpha = alpha;
+                     alpha = Math.max(alpha, (newAlpha));
+                     currentAlpha = Math.max(currentAlpha,newAlpha);
                      //alpha = Math.max(alpha, alphabeta(depth – 1, alpha, beta,false));
+                     System.out.println("MAX | lastAplha: "+ lastAlpha+ " currentAlpha: "+currentAlpha+" alpha: "+alpha +" > beta: "+beta + "| AI h: "+newAlpha +" on ("+(8-columnMoves[column])+","+column+")| depth: "+depth);
                      undoAIMove(column);
-                     if (beta <= alpha) {
-                         break;
+                     
+                     
+                     if(newAlpha>alpha){
+                         System.out.println("BREAKED NEW ALPHA");
+                         alpha = alpha - (DEFAULT_DEPTH-depth);
+                         System.out.println("============= Returned alpha:" + alpha);
+                         return alpha;
                      }
                  }
              }
-             return alpha;
+             currentAlpha = currentAlpha - (DEFAULT_DEPTH-depth);
+             System.out.println("============= Returned alpha:" + currentAlpha);
+             //return alpha;
+             return currentAlpha;
          } else {
+             double currentBeta = 0;
              for (int column = 0; column < BOARD_WIDTH; column++) {
                  if (isAIValidMove(column)) {
-                     makePlayerMove(column);
-                     beta = Math.min(beta,alphabeta(depth-1,alpha,beta,true,col));
-                     //beta = Math.min(beta,alphabeta(depth – 1,alpha, beta, true));
-                     undoPlayerMove(column);
-                     if (beta <= alpha) {
-                         break;
+                     /*
+                     double currentHeuristic = 0-getHeuristicValue(column, false);
+                     if(currentHeuristic<=beta){
+                         System.out.println("BY CURRENT HEURISTIC");
+                         return currentHeuristic;
                      }
+                     */
+                     
+                     makePlayerMove(column);
+                     double newBeta = 0-alphabeta(depth-1,alpha,beta,true,column);
+                     beta = Math.min(beta,newBeta);
+                     currentBeta = Math.min(newBeta, currentBeta);
+                     
+                     //beta = Math.min(beta,alphabeta(depth – 1,alpha, beta, true));
+                     System.out.println("MIN | lastBeta: "+ lastBeta+ " currentBeta"+currentBeta+" alpha: "+alpha +" > beta: "+beta + "| Player h: "+newBeta+" on ("+(8-columnMoves[column])+","+column+") | depth: "+depth);
+                     undoPlayerMove(column);
+                     
+                     if(newBeta < beta){
+                         System.out.println("BREAKED NEWBETA ");
+                         beta = beta + (DEFAULT_DEPTH-depth);
+                         System.out.println("============== Returned beta: " + beta);
+                         return beta;
+                     }                 
                  }
              }
-             return beta;
+             currentBeta = (currentBeta) + (DEFAULT_DEPTH-depth);
+             System.out.println("============== Returned beta: " + currentBeta);
+             //return beta;
+             return currentBeta;
          }
      }
     
@@ -570,6 +791,24 @@ public class MainBoard extends javax.swing.JFrame {
 		}
 		return result.toString();
 	}
+    
+    class IDValue{
+        public String position;
+        public double value;
+    
+        public IDValue(String position, double value){
+            position = position;
+            value = value;
+        }
+    }
+    
+    public class IDValueComparator implements Comparator<IDValue> {
+    @Override
+    public int compare(IDValue o1, IDValue o2) {
+        return Double.compare(o1.value, o2.value);
+    }
+}
+
     
 // ================================================================================
 // ================================================================================
