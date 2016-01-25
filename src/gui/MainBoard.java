@@ -11,6 +11,7 @@ import java.awt.GridLayout;
 import java.awt.Shape;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -84,7 +85,7 @@ public class MainBoard extends javax.swing.JFrame {
                                 return;
 
                             }
-                            tokenAI= testAIMove();
+                            tokenAI= testAIMove(token);
                             runAIMove(tokenAI);
                             if(hasWinner(tokenAI.getXindex(), tokenAI.getYindex(), -1)){
                                 JOptionPane.showMessageDialog(null, "¡I win - I'm smarter than you!");
@@ -610,7 +611,7 @@ public class MainBoard extends javax.swing.JFrame {
     
     // FUNCIÓN QUE RETORNA EL TOKEN QUE DEBE DAR LA PC
     
-    private TokenView testAIMove(){
+    private TokenView testAIMove(TokenView tk){
         double MAX = 500; // ES ALPHA PARA LA PC
         double MIN = -500; // ES BETA PARA EL JUGADOR
         int x = 7;
@@ -627,10 +628,14 @@ public class MainBoard extends javax.swing.JFrame {
         ArrayList<IDValue> ab_h = new ArrayList<>();
         ArrayList<IDValue> c_h = new ArrayList<>();
         
+        GNode master = new GNode("--", tk.getID(), 0, 0);
+        
         for(int i = 0; i< BOARD_HEIGHT; i++){
             makeAIMove(i); System.out.println("*********************************");
-            double tmp = Math.abs(alphabeta(DEFAULT_DEPTH, MAX, MIN, player, i));
             hs[i] = getHeuristicValue(i, true)+0.1;
+            GNode child = new GNode(master.nodeID, ((BOARD_HEIGHT-1) - columnMoves[i])+""+i, 1, hs[i]);
+            double tmp = Math.abs(alphabeta(DEFAULT_DEPTH, MAX, MIN, player, i, child));
+            master.addChild(child);
             undoAIMove(i); System.out.println("*********************************");
             //double tmp = alphabeta(2, -3, 3, player, i);
             System.out.println("=======================================");
@@ -670,6 +675,12 @@ public class MainBoard extends javax.swing.JFrame {
         System.out.println("Token maximixed id: "+x+y+"");
         
         //Collections.sort(l);
+        try{
+        GGraph.draw(master);
+        }catch(Exception e){
+            System.out.println("ERROR");
+            e.printStackTrace();
+        }
         
         
         for(int w = 0; w<8;w++){
@@ -697,7 +708,7 @@ public class MainBoard extends javax.swing.JFrame {
     }
     
     
-    double alphabeta(int depth, double alpha, double beta, boolean maximizingAI, int col) {
+    double alphabeta(int depth, double alpha, double beta, boolean maximizingAI, int col, GNode parent) {
           //boolean hasWinner = board.hasWinner();
           
           // All these conditions lead to a
@@ -749,7 +760,10 @@ public class MainBoard extends javax.swing.JFrame {
                      */
                      
                      makeAIMove(column);
-                     double newAlpha = Math.abs(alphabeta(depth-1, alpha, beta,false ,column));
+                     GNode child = new GNode(parent.nodeID, ((BOARD_HEIGHT-1) - columnMoves[column])+""+column, 2+(DEFAULT_DEPTH-depth), 0);
+                     double newAlpha = Math.abs(alphabeta(depth-1, alpha, beta,false ,column,child));
+                     child.hvalue = newAlpha;
+                     parent.addChild(child);
                      //double lastAlpha = alpha;
                      alpha = Math.max(alpha, (newAlpha));
                      currentAlpha = Math.max(currentAlpha,newAlpha);
@@ -783,7 +797,11 @@ public class MainBoard extends javax.swing.JFrame {
                      */
                      
                      makePlayerMove(column);
-                     double newBeta = 0-alphabeta(depth-1,alpha,beta,true,column);
+                     GNode child = new GNode(parent.nodeID, ((BOARD_HEIGHT-1) - columnMoves[column])+""+column, 2+(DEFAULT_DEPTH-depth), 0);
+                     double newBeta = 0-alphabeta(depth-1,alpha,beta,true,column,child);
+                     child.hvalue = newBeta;
+                     parent.addChild(child);
+                     
                      beta = Math.min(beta,newBeta);
                      currentBeta = Math.min(newBeta, currentBeta);
                      
@@ -837,6 +855,30 @@ public class MainBoard extends javax.swing.JFrame {
 		}
 		return result.toString();
 	}
+    
+    public class GNode{
+        public String parentID = "";
+        public String nodeID = "";
+        public int depth = 0;
+        public double hvalue = 0.0;
+        ArrayList<GNode> children;
+        
+        public GNode(String pid, String nid, int d, double h){
+            this.parentID = pid;
+            this.nodeID = nid;
+            this.depth = d;
+            this.hvalue = h;
+            children = new ArrayList<>();
+        }
+        
+        public void addChild(GNode n){
+            children.add(n);
+        }
+        
+        public ArrayList<GNode> getChildren(){
+            return this.children;
+        }
+    }
     
     class IDValue{
         public String position;
