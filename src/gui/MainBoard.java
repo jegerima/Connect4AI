@@ -19,7 +19,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -30,6 +32,10 @@ import javax.swing.SwingUtilities;
  * @author Jefferson
  */
 public class MainBoard extends javax.swing.JFrame {
+    
+    private int player_wins = 0;
+    private int ai_wins = 0;
+    private boolean ai_finish;
 
     private GridLayout BOARD;
     private boolean player = true;
@@ -59,6 +65,10 @@ public class MainBoard extends javax.swing.JFrame {
         this.hash_tokens = new HashMap<>();
         this.BOARD = new GridLayout(8,8,0,0);
         this.pn_board.setLayout(BOARD);
+        
+        ImageIcon ii = new ImageIcon(getClass().getResource("wait1.gif"));
+        lbl_gif.setIcon(ii);
+        lbl_gif.setVisible(false);
       
         for(int i = 0; i<8; i++){
             columnMoves[i] = 0; //inicializo los movimientos para las 8 columnas 
@@ -82,14 +92,35 @@ public class MainBoard extends javax.swing.JFrame {
                             if(hasWinner(token.getXindex(), token.getYindex(), 1)){
                                 JOptionPane.showMessageDialog(null, "¡You win - Sometimes luck favors the dumbest!");
                                 cleanBoard();
+                                player_wins++;
+                                lbl_player_wins.setText(player_wins+"");
                                 return;
 
                             }
+                            
+                            ai_finish = false;
+                            Thread t = new Thread(new Runnable() {
+                            @Override
+                                public void run() {
+                                    lbl_gif.setVisible(true);
+                                    while(!ai_finish){
+                                        sleep(50);
+                                    }
+                                    lbl_gif.setVisible(false);
+                                }
+                            }); t.start();
+                            
+                            
                             tokenAI= testAIMove(token);
                             runAIMove(tokenAI);
+                            ai_finish = true;
+                            
+                            lbl_gif.setVisible(false);
                             if(hasWinner(tokenAI.getXindex(), tokenAI.getYindex(), -1)){
                                 JOptionPane.showMessageDialog(null, "¡I win - I'm smarter than you!");
                                 cleanBoard();
+                                ai_wins++;
+                                lbl_ai_wins.setText(ai_wins+"");
                                 return;
                             }
                     }
@@ -136,7 +167,11 @@ public class MainBoard extends javax.swing.JFrame {
                 if(tk.isLocked())
                     continue;
                 else{
-                    tk.setLikeHint();
+                    //if(mni_chk_hint.isSelected())
+                    //    tk.setLikeHint();
+                    //else
+                        tk.setLikeHint();
+                        //tk.setLikeHintWithoutColor();
                     break;
                 }
             }
@@ -146,10 +181,8 @@ public class MainBoard extends javax.swing.JFrame {
     }
     
     private void runPlayerMove(TokenView tv){
-        //TokenView tv = hash_tokens.get(xy);
         tv.setColorInGame(getPlayerColor());
         columnMoves[tv.getYindex()] = columnMoves[tv.getYindex()]+1;
-        //System.out.println("Final Heuristic Player: "+getHeuristicValue(tv.getYindex(), player));
         player = !player;
         System.out.println("Player: Xindex: "+tv.getXindex()+" | Yindex: "+tv.getYindex());
         aiboard[tv.getXindex()][tv.getYindex()] = 1; // el jugador le dio click a ese token
@@ -157,8 +190,7 @@ public class MainBoard extends javax.swing.JFrame {
     }
     
     private void runAIMove(TokenView tv){
-        tv.setColorInGame(getAIColor(
-        ));
+        tv.setColorInGame(getAIColor());
         columnMoves[tv.getYindex()] = columnMoves[tv.getYindex()]+1;
         System.out.println("AI: Final Heuristic AI: "+getHeuristicValue(tv.getYindex(), player));
         player = !player;
@@ -171,6 +203,7 @@ public class MainBoard extends javax.swing.JFrame {
         
     private void makePlayerMove(int column){
         int row = (BOARD_HEIGHT-1)-columnMoves[column];
+        System.out.println(row+"|"+column+"----------------------------");
         aiboard[row][column] = 1;
         columnMoves[column] = columnMoves[column] + 1;
         System.out.println("Perfomed player move in: ("+row+","+column+")");
@@ -178,6 +211,7 @@ public class MainBoard extends javax.swing.JFrame {
     
     private void makeAIMove(int column){
         int row = (BOARD_HEIGHT-1)-columnMoves[column];
+        System.out.println(row+"|"+column+"----------------------------");
         aiboard[row][column] = -1;
         columnMoves[column] = columnMoves[column] + 1;
         System.out.println("Perfomed AI move in: ("+row+","+column+")");
@@ -313,7 +347,7 @@ public class MainBoard extends javax.swing.JFrame {
     }
     
     boolean isAIValidMove(int column){        
-        return columnMoves[column] < BOARD_HEIGHT;
+        return columnMoves[column]+1 < BOARD_HEIGHT;
     }
     
     public String genID(int x, int y){
@@ -341,6 +375,8 @@ public class MainBoard extends javax.swing.JFrame {
         
         //System.out.println(columnMoves[column]);
         
+        if(tmpx==8)
+            return 0;
         if(tmpx==8 && player)
             tmpx =7;
         else if(tmpx==8) return 0;
@@ -440,28 +476,6 @@ public class MainBoard extends javax.swing.JFrame {
                 }
             }
         }
-        /*
-        //Up
-        if(x>0){
-            boolean pro = false;    //A favor
-            boolean against = false;
-            for(int i=x; i>=x-2;i--){
-                if((i-1)<0)break;
-                                
-                if(aiboard[i-1][column]==0){        //Nobody has played that position
-                    break;
-                }else if(aiboard[i-1][column]==val){
-                    if(against)break;
-                    pro = true;
-                    vuv_p++;
-                }else{
-                    if(pro) break;
-                    against = true;
-                    vuv_n--;
-                }
-            }
-        }
-        */
         
         //RightUp
         if(y<(BOARD_WIDTH-1) && x > 0){
@@ -588,9 +602,6 @@ public class MainBoard extends javax.swing.JFrame {
             if(max==3) fact1 = fact1*2.0;
             if(min == -3) fact2 = fact2*2.0;
             
-            //if(max == 3 && min ==-3)
-            //    return 500;
-            
             if(max == 3)
                 return 500+DEFAULT_DEPTH+1;
             if(min == -3)
@@ -610,7 +621,6 @@ public class MainBoard extends javax.swing.JFrame {
     
     
     // FUNCIÓN QUE RETORNA EL TOKEN QUE DEBE DAR LA PC
-    
     private TokenView testAIMove(TokenView tk){
         double MAX = 500; // ES ALPHA PARA LA PC
         double MIN = -500; // ES BETA PARA EL JUGADOR
@@ -618,8 +628,9 @@ public class MainBoard extends javax.swing.JFrame {
         int y = 0;
         double val = Double.MAX_VALUE;
         double maxval = 500;
-        double values[] = new double[8]; //las heuristicas acumuladas de los nodos hijos de cada una de las 8 opciones del
+        //double values[] = new double[8]; //las heuristicas acumuladas de los nodos hijos de cada una de las 8 opciones del
         // turno de la PC
+        
         double hs[] = new double [8]; // la heuristica de la 1era capa de la PC 
         
         ArrayList<String> l_values = new ArrayList<>();
@@ -628,83 +639,118 @@ public class MainBoard extends javax.swing.JFrame {
         ArrayList<IDValue> ab_h = new ArrayList<>();
         ArrayList<IDValue> c_h = new ArrayList<>();
         
+        ArrayList<IDValue> ab_max_h = new ArrayList<>();
+        ArrayList<IDValue> c_max_h = new ArrayList<>();
+        
         GNode master = new GNode("--", tk.getID(), 0, 0);
         
         for(int i = 0; i< BOARD_HEIGHT; i++){
+            if(!isAIValidMove(i))
+                continue;
             makeAIMove(i); System.out.println("*********************************");
             hs[i] = getHeuristicValue(i, true)+0.1;
-            GNode child = new GNode(master.nodeID, ((BOARD_HEIGHT-1) - columnMoves[i])+""+i, 1, hs[i]);
-            double tmp = Math.abs(alphabeta(DEFAULT_DEPTH, MAX, MIN, player, i, child));
+            GNode child = new GNode(master.nodeID, ((BOARD_HEIGHT) - columnMoves[i])+""+i, 1, hs[i]);
+            double alphabeta = Math.abs(alphabeta(DEFAULT_DEPTH, MAX, MIN, player, i, child));
+            
+            ab_h.add(new IDValue(((BOARD_HEIGHT) - columnMoves[i])+""+i, alphabeta));
+            c_h.add(new IDValue(((BOARD_HEIGHT) - columnMoves[i])+""+i, hs[i]));
+            
+            if(hs[i]>alphabeta){
+                ab_max_h.add(new IDValue(((BOARD_HEIGHT) - columnMoves[i])+""+i, alphabeta));
+                c_max_h.add(new IDValue(((BOARD_HEIGHT) - columnMoves[i])+""+i, hs[i]));
+            }
+            
             master.addChild(child);
             undoAIMove(i); System.out.println("*********************************");
             //double tmp = alphabeta(2, -3, 3, player, i);
             System.out.println("=======================================");
-            System.out.println("tmp:"+i+" "+tmp+" | value:"+val);
+            System.out.println("tmp:"+i+" "+alphabeta+" | value:"+val);
             System.out.println("=======================================");
-            values[i] = (tmp);
-            
-            
-            
-            x = (BOARD_HEIGHT-1) - columnMoves[i];
-            y = i;
-            
-            //ab_h.add(new IDValue(x+y+"", tmp));
-            //c_h.add(new IDValue(x+y+"", hs[i]));
-            
-            
-            
-            if(tmp > maxval){
-                l.clear();
-                maxval = tmp;
-                l_values.add(""+x+y+"");
-            }
-                
-            if(val == tmp){
-                l.add(""+x+y+"");
-            }
-            
-            if(tmp < val){
-                l.clear();
-                //x = (BOARD_HEIGHT-1) - columnMoves[i];
-                //y = i;
-                val = (tmp);
-                l.add(""+x+y+"");
-            }
         }
         
         System.out.println("Token maximixed id: "+x+y+"");
         
-        //Collections.sort(l);
         try{
-        GGraph.draw(master);
+            if(mni_chk_graph.isSelected())
+                GGraph.draw(master);
         }catch(Exception e){
             System.out.println("ERROR");
             e.printStackTrace();
         }
         
-        
-        for(int w = 0; w<8;w++){
-            System.out.println(values[w] + "|"+ hs[w]);
+        //Si ninguna heurisitica actual es mayor a la de alphabeta
+        Collections.sort(c_max_h, new IDValueComparator());
+        if(c_max_h.isEmpty()){
+            int count = 1;
+            for(int s = 0 ;s<ab_h.size()-1; s++){
+                if(ab_h.get(s).value>ab_h.get(s+1).value){
+                    break;
+                }
+                count++;
+            }
+            System.out.println("Returned the min value of alphabeta heuristics (Random Size)");
+            return hash_tokens.get(ab_h.get(Math.abs(new Random().nextInt())%count).position);
         }
         
-        
-        
-        for(int w = 0; w<8;w++){
-            if(hs[w]>values[w])
-                return hash_tokens.get(((BOARD_HEIGHT-1) - columnMoves[w])+""+w);
+                
+        for(int s = 0; s < c_max_h.size(); s++){
+            IDValue idv = c_max_h.get(s);
+            IDValue idv2 = ab_max_h.get(s);
+            System.out.println("-> "+idv.value + " | "+idv.position +"--> "+idv2.value + " | "+idv.position );
         }
         
-        if(l_values.size()>0){
-            System.out.println(l_values.size());
-            return hash_tokens.get(l_values.get(Math.abs(new Random().nextInt())%l_values.size()));
+        //Ordenando de menor a mayor las heuriticas actuales
+        Collections.sort(c_max_h, new IDValueComparator());
+        
+        for(int s = 0; s < c_max_h.size(); s++){
+            IDValue idv = c_max_h.get(s);
+            System.out.println("-> "+idv.value + " | "+idv.position);
         }
         
-        System.out.println("size:"+l.size());
-        int index = Math.abs(new Random().nextInt())%l.size();
-        System.out.println("index: "+index+" size:"+l.size());
-        //return hash_tokens.get(""+x+y+"");
-        System.out.println(l.get(index));
-        return hash_tokens.get(l.get(index));
+        //Arreglo que contendra las heuristicas alphabetas que hayan sido menores a las heuristicas actuales
+        ArrayList<IDValue> final_mins = new ArrayList<>();
+        final_mins.add(c_max_h.get(c_max_h.size()-1));
+        for(int t=c_max_h.size()-1; t>0; t-- ){
+            if(c_max_h.get(t-1).value<c_max_h.get(t).value){
+                IDValue removed = c_max_h.remove(t-1);
+                t = t-1;
+            }else{
+                final_mins.add(c_max_h.get(t));
+            }
+        }
+        
+        System.out.println(c_max_h.size()+"|"+final_mins.size());
+        
+        //Si solo hay una heuristica actual mayor a la de alphabeta
+        if(c_max_h.size()==1){
+            System.out.println("One element in current heuristic");
+            return hash_tokens.get(c_max_h.get(0).position);
+        }
+        
+        //Si hay mas heuristicas actuales mayores, pero iguales entre si, poda para retornar la minima de las heurisicas alphabeta (Random Size)
+        if(c_max_h.size()>1){
+            if(final_mins.size()==1){
+                System.out.println("One element in alphabeta heuristic cutoff by h");
+                return hash_tokens.get(final_mins.get(0).position);
+            }else{
+                Collections.sort(final_mins, new IDValueComparator());
+                int counter =1;
+                for(int i=0; i< final_mins.size()-1; i++){
+                    if(final_mins.get(i+1).value>final_mins.get(i).value){
+                        System.out.println("(Random Size) Min element(s) of alphabeta");
+                        return hash_tokens.get(final_mins.get((Math.abs(new Random().nextInt())%counter)).position);
+                    }
+                    counter++;
+                }
+                System.out.println("(Random Size) Random element in all mins of alphabeta");
+                return hash_tokens.get(final_mins.get((Math.abs(new Random().nextInt())%final_mins.size())).position);
+            }
+        }
+        
+        JOptionPane.showMessageDialog(null, "Oops. My play not will be the best");
+            
+        return hash_tokens.get(ab_h.get((Math.abs(new Random().nextInt())%ab_h.size())).position);
+        
     }
     
     
@@ -714,32 +760,7 @@ public class MainBoard extends javax.swing.JFrame {
           // All these conditions lead to a
           // termination of the recursion
           if (depth == 0 ) {
-              /*
-              double score = 0;
-              if (hasWinner) {
-                  score = board.playerIsWinner() ? LOSE_REVENUE : WIN_REVENUE;
-             } else {
-                 score = UNCERTAIN_REVENUE;
-             }
-             // Note that depth in this
-             // implementation starts at a high
-             // value and is decreased in every
-             // recursive call. This means that the
-             // deeper the recursion is, the
-             // greater MAX_DEPTH – depth will
-             // become and thus the smaller the
-             // result will become.
-             // This is done as a tweak, simply
-             // spoken, something bad happening in
-             // the next turn is worse than it
-             // happening in let’s say five steps.
-             // Analogously something good
-             // happening in the next turn is
-             // better than it happening in five
-             // steps.
-             return (score / (MAX_DEPTH - depth + 1));
-              */
-
+              
               double h = getHeuristicValue(col, maximizingAI);
               System.out.println("RETURNED h: "+h+ " for ("+(8-columnMoves[col])+","+col+") | MaximizingAI: "+maximizingAI );
               return h;
@@ -752,25 +773,18 @@ public class MainBoard extends javax.swing.JFrame {
              double currentAlpha = 0;
              for (int column = 0; column < BOARD_WIDTH; column++) {
                  if (isAIValidMove(column)) {
-                     /*
-                     double currentHeuristic = Math.abs(getHeuristicValue(column, true));
-                     if(currentHeuristic>=alpha){
-                         return currentHeuristic;
-                     }
-                     */
                      
                      makeAIMove(column);
                      GNode child = new GNode(parent.nodeID, ((BOARD_HEIGHT-1) - columnMoves[column])+""+column, 2+(DEFAULT_DEPTH-depth), 0);
                      double newAlpha = Math.abs(alphabeta(depth-1, alpha, beta,false ,column,child));
                      child.hvalue = newAlpha;
                      parent.addChild(child);
-                     //double lastAlpha = alpha;
+                     
                      alpha = Math.max(alpha, (newAlpha));
                      currentAlpha = Math.max(currentAlpha,newAlpha);
-                     //alpha = Math.max(alpha, alphabeta(depth – 1, alpha, beta,false));
+                     
                      System.out.println("MAX | lastAplha: "+ lastAlpha+ " currentAlpha: "+currentAlpha+" alpha: "+alpha +" > beta: "+beta + "| AI h: "+newAlpha +" on ("+(8-columnMoves[column])+","+column+")| depth: "+depth);
                      undoAIMove(column);
-                     
                      
                      if(newAlpha>alpha){
                          System.out.println("BREAKED NEW ALPHA");
@@ -787,14 +801,7 @@ public class MainBoard extends javax.swing.JFrame {
          } else {
              double currentBeta = 0;
              for (int column = 0; column < BOARD_WIDTH; column++) {
-                 if (isAIValidMove(column)) {
-                     /*
-                     double currentHeuristic = 0-getHeuristicValue(column, false);
-                     if(currentHeuristic<=beta){
-                         System.out.println("BY CURRENT HEURISTIC");
-                         return currentHeuristic;
-                     }
-                     */
+                 if (isAIValidMove(column)) {                  
                      
                      makePlayerMove(column);
                      GNode child = new GNode(parent.nodeID, ((BOARD_HEIGHT-1) - columnMoves[column])+""+column, 2+(DEFAULT_DEPTH-depth), 0);
@@ -805,7 +812,6 @@ public class MainBoard extends javax.swing.JFrame {
                      beta = Math.min(beta,newBeta);
                      currentBeta = Math.min(newBeta, currentBeta);
                      
-                     //beta = Math.min(beta,alphabeta(depth – 1,alpha, beta, true));
                      System.out.println("MIN | lastBeta: "+ lastBeta+ " currentBeta"+currentBeta+" alpha: "+alpha +" > beta: "+beta + "| Player h: "+newBeta+" on ("+(8-columnMoves[column])+","+column+") | depth: "+depth);
                      undoPlayerMove(column);
                      
@@ -885,8 +891,8 @@ public class MainBoard extends javax.swing.JFrame {
         public double value;
     
         public IDValue(String position, double value){
-            position = position;
-            value = value;
+            this.position = position;
+            this.value = value;
         }
     }
     
@@ -927,19 +933,40 @@ public class MainBoard extends javax.swing.JFrame {
     private void initComponents() {
 
         mni_help = new javax.swing.JMenuItem();
+        jPanel1 = new javax.swing.JPanel();
         pnl_general_info = new javax.swing.JPanel();
         jSeparator2 = new javax.swing.JSeparator();
         pn_board = new javax.swing.JPanel();
-        jSeparator3 = new javax.swing.JSeparator();
+        jPanel2 = new javax.swing.JPanel();
+        jLabel1 = new javax.swing.JLabel();
+        jLabel2 = new javax.swing.JLabel();
+        lbl_player_wins = new javax.swing.JLabel();
+        lbl_ai_wins = new javax.swing.JLabel();
+        jPanel3 = new javax.swing.JPanel();
+        jPanel6 = new javax.swing.JPanel();
+        lbl_gif = new javax.swing.JLabel();
+        jLabel3 = new javax.swing.JLabel();
         mn_bar = new javax.swing.JMenuBar();
         mn_options = new javax.swing.JMenu();
         mni_new_game = new javax.swing.JMenuItem();
-        mni_chk_hint = new javax.swing.JCheckBoxMenuItem();
+        mni_chk_graph = new javax.swing.JCheckBoxMenuItem();
         jSeparator1 = new javax.swing.JPopupMenu.Separator();
         mni_exit = new javax.swing.JMenuItem();
         mn_about = new javax.swing.JMenu();
+        mni_version = new javax.swing.JMenuItem();
 
         mni_help.setText("Ayuda");
+
+        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
+        jPanel1.setLayout(jPanel1Layout);
+        jPanel1Layout.setHorizontalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 100, Short.MAX_VALUE)
+        );
+        jPanel1Layout.setVerticalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 100, Short.MAX_VALUE)
+        );
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Connect4 - IA Games");
@@ -948,11 +975,11 @@ public class MainBoard extends javax.swing.JFrame {
         pnl_general_info.setLayout(pnl_general_infoLayout);
         pnl_general_infoLayout.setHorizontalGroup(
             pnl_general_infoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 0, Short.MAX_VALUE)
+            .addGap(0, 193, Short.MAX_VALUE)
         );
         pnl_general_infoLayout.setVerticalGroup(
             pnl_general_infoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 55, Short.MAX_VALUE)
+            .addGap(0, 72, Short.MAX_VALUE)
         );
 
         javax.swing.GroupLayout pn_boardLayout = new javax.swing.GroupLayout(pn_board);
@@ -963,10 +990,97 @@ public class MainBoard extends javax.swing.JFrame {
         );
         pn_boardLayout.setVerticalGroup(
             pn_boardLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 0, Short.MAX_VALUE)
+            .addGap(0, 412, Short.MAX_VALUE)
         );
 
-        jSeparator3.setOrientation(javax.swing.SwingConstants.VERTICAL);
+        jLabel1.setBackground(new java.awt.Color(255, 255, 0));
+        jLabel1.setText("Player wins:");
+
+        jLabel2.setText("AI wins:");
+
+        lbl_player_wins.setText("0");
+
+        lbl_ai_wins.setText("0");
+
+        jPanel3.setBackground(new java.awt.Color(255, 255, 0));
+        jPanel3.setForeground(new java.awt.Color(255, 255, 0));
+
+        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
+        jPanel3.setLayout(jPanel3Layout);
+        jPanel3Layout.setHorizontalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 13, Short.MAX_VALUE)
+        );
+        jPanel3Layout.setVerticalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 13, Short.MAX_VALUE)
+        );
+
+        jPanel6.setBackground(new java.awt.Color(255, 0, 0));
+
+        javax.swing.GroupLayout jPanel6Layout = new javax.swing.GroupLayout(jPanel6);
+        jPanel6.setLayout(jPanel6Layout);
+        jPanel6Layout.setHorizontalGroup(
+            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 13, Short.MAX_VALUE)
+        );
+        jPanel6Layout.setVerticalGroup(
+            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 13, Short.MAX_VALUE)
+        );
+
+        jLabel3.setText("Estadisticas");
+
+        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
+        jPanel2.setLayout(jPanel2Layout);
+        jPanel2Layout.setHorizontalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jLabel1)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(lbl_player_wins, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(jPanel2Layout.createSequentialGroup()
+                                .addComponent(jPanel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addComponent(jLabel2)
+                                .addGap(29, 29, 29)
+                                .addComponent(lbl_ai_wins, javax.swing.GroupLayout.PREFERRED_SIZE, 28, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(jLabel3))
+                        .addGap(0, 0, Short.MAX_VALUE)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(lbl_gif, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap())
+        );
+        jPanel2Layout.setVerticalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(lbl_gif, javax.swing.GroupLayout.DEFAULT_SIZE, 51, Short.MAX_VALUE))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel3)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                .addComponent(jLabel1)
+                                .addComponent(lbl_player_wins))
+                            .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                .addComponent(jLabel2)
+                                .addComponent(lbl_ai_wins))
+                            .addComponent(jPanel6, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addContainerGap())
+        );
 
         mn_options.setText("Opciones");
 
@@ -979,9 +1093,14 @@ public class MainBoard extends javax.swing.JFrame {
         });
         mn_options.add(mni_new_game);
 
-        mni_chk_hint.setSelected(true);
-        mni_chk_hint.setText("Mostrar ayuda");
-        mn_options.add(mni_chk_hint);
+        mni_chk_graph.setText("Mostrar Grafo");
+        mni_chk_graph.setName(""); // NOI18N
+        mni_chk_graph.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                mni_chk_graphActionPerformed(evt);
+            }
+        });
+        mn_options.add(mni_chk_graph);
         mn_options.add(jSeparator1);
 
         mni_exit.setText("Salir");
@@ -990,6 +1109,15 @@ public class MainBoard extends javax.swing.JFrame {
         mn_bar.add(mn_options);
 
         mn_about.setText("Acerca de");
+
+        mni_version.setText("Version");
+        mni_version.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                mni_versionActionPerformed(evt);
+            }
+        });
+        mn_about.add(mni_version);
+
         mn_bar.add(mn_about);
 
         setJMenuBar(mn_bar);
@@ -1002,27 +1130,28 @@ public class MainBoard extends javax.swing.JFrame {
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addComponent(jSeparator2, javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(pnl_general_info, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
-                        .addComponent(pn_board, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, 18)
-                        .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 19, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 135, Short.MAX_VALUE)))
-                .addContainerGap())
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(pn_board, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(0, 10, Short.MAX_VALUE))
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(pnl_general_info, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                        .addContainerGap())))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(pnl_general_info, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(pnl_general_info, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 10, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(pn_board, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 415, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addComponent(pn_board, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addContainerGap())
         );
 
@@ -1032,6 +1161,14 @@ public class MainBoard extends javax.swing.JFrame {
     private void mni_new_gameActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_mni_new_gameActionPerformed
         cleanBoard();
     }//GEN-LAST:event_mni_new_gameActionPerformed
+
+    private void mni_chk_graphActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_mni_chk_graphActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_mni_chk_graphActionPerformed
+
+    private void mni_versionActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_mni_versionActionPerformed
+        JOptionPane.showMessageDialog(null,"Version 0.1","Connect4 Version",JOptionPane.INFORMATION_MESSAGE);
+    }//GEN-LAST:event_mni_versionActionPerformed
 
     /**
      * @param args the command line arguments
@@ -1069,16 +1206,26 @@ public class MainBoard extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel2;
+    private javax.swing.JLabel jLabel3;
+    private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel2;
+    private javax.swing.JPanel jPanel3;
+    private javax.swing.JPanel jPanel6;
     private javax.swing.JPopupMenu.Separator jSeparator1;
     private javax.swing.JSeparator jSeparator2;
-    private javax.swing.JSeparator jSeparator3;
+    private javax.swing.JLabel lbl_ai_wins;
+    private javax.swing.JLabel lbl_gif;
+    private javax.swing.JLabel lbl_player_wins;
     private javax.swing.JMenu mn_about;
     private javax.swing.JMenuBar mn_bar;
     private javax.swing.JMenu mn_options;
-    private javax.swing.JCheckBoxMenuItem mni_chk_hint;
+    private javax.swing.JCheckBoxMenuItem mni_chk_graph;
     private javax.swing.JMenuItem mni_exit;
     private javax.swing.JMenuItem mni_help;
     private javax.swing.JMenuItem mni_new_game;
+    private javax.swing.JMenuItem mni_version;
     private javax.swing.JPanel pn_board;
     private javax.swing.JPanel pnl_general_info;
     // End of variables declaration//GEN-END:variables
