@@ -24,7 +24,7 @@ public class GGraph extends JFrame{
 
     public GGraph(GNode node, int w, int h)
     {
-            super("Hello, World!");
+            super("Graph");
 
             mxGraph graph = new mxGraph();
             Object parent = graph.getDefaultParent();
@@ -47,8 +47,8 @@ public class GGraph extends JFrame{
     }
     
     private void createRecursiveGraph(Object vertex, GNode pnode, mxGraph graph, Object parent,int offset){
-        for(int i=0; i<pnode.getChilds().size();i++){
-            GNode gn = pnode.getChilds().get(i);
+        for(int i=0; i<pnode.getChildren().size();i++){
+            GNode gn = pnode.getChildren().get(i);
             
             int currentDepth = gn.depth;
             if(currentDepth>2)return;
@@ -56,8 +56,6 @@ public class GGraph extends JFrame{
             //Object newVertex = graph.insertVertex(parent, null, gn.nodeID, ((1280/off-(20-2*currentDepth))*i)+(1280/off)+((currentDepth-1)*offset*off) , 30 + (20+150)*currentDepth, 20, 20);
             Object newVertex = graph.insertVertex(parent, null, gn.nodeID+'\n'+gn.hvalue, ((1280/off)*i)+  (1280/off*offset*7)+(1280/off*offset) + (1280/off/2)*(offset+1) , 30 + (20+150)*currentDepth, 20-(2*currentDepth), 40);
             graph.insertEdge(parent, null, gn.hvalue, vertex, newVertex);
-            
-            
             
             //System.out.println(currentDepth);
             createRecursiveGraph(newVertex, gn, graph, parent,i);

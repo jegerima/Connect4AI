@@ -110,6 +110,11 @@ public class TokenView extends JComponent{
         repaint();
     }
     
+    public void setLikeHintWithoutColor(){
+        this.isHint = true;
+        this.currentColor = Color.GRAY;
+    }
+    
     public void setHover(){
         this.isHover = true;
         this.currentColor = Color.GRAY;
