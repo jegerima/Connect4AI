@@ -5,7 +5,6 @@
  */
 package gui;
 
-import static connect4.Connect4.BOARD_WIDTH;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.GridLayout;
@@ -20,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import javax.swing.JButton;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
@@ -33,17 +33,15 @@ public class MainBoard extends javax.swing.JFrame {
     private GridLayout BOARD;
     private boolean player = true;
     private boolean playerYellow = true;
-    private HashMap<String,TokenView> hash_tokens;
-    private String[][] matrix;
-    private int[][] aiboard;
-    private int columnMoves[];
-    private int DEFAULT_DEPTH = 2;
-    
+    private HashMap<String,TokenView> hash_tokens; //extracción del id del token 
+    private String[][] matrix; //x+y ayuda a relacionar con hash
+    private int[][] aiboard; //matriz de 1 y -1: -1 es para la PC y 1 para el humano
+    private int columnMoves[]; // cantidad de movimiento  por columna
+    private int DEFAULT_DEPTH = 2; //profundidad del árbol empezando desde al jugador  -> en realidad serían 3 de profundadid
     public static int BOARD_WIDTH = 8;
     public static int BOARD_HEIGHT = 8;
     
     //static final int MAX_DEPTH = 8;
-    
     public final byte NOBODY = 0;
     public final byte PLAYER = 1;
     public final byte AI = -1;
@@ -60,12 +58,14 @@ public class MainBoard extends javax.swing.JFrame {
         this.hash_tokens = new HashMap<>();
         this.BOARD = new GridLayout(8,8,0,0);
         this.pn_board.setLayout(BOARD);
+      
         for(int i = 0; i<8; i++){
-            columnMoves[i] = 0;
+            columnMoves[i] = 0; //inicializo los movimientos para las 8 columnas 
             for(int j = 0; j<8; j++){
                 final TokenView token = new TokenView(Color.WHITE,i,j);
                 this.hash_tokens.put(token.getID(),token);
                 this.pn_board.add(token, BorderLayout.CENTER);
+                
                 this.matrix[i][j] = token.getID();
                 this.aiboard[i][j] = 0;
                 token.addMouseListener(new MouseAdapter() {
@@ -75,21 +75,22 @@ public class MainBoard extends javax.swing.JFrame {
                             return;
                         }
                         
-                        //if(player)
+                            TokenView tokenAI = new TokenView();
+                          
                             runPlayerMove(token);
-                            runAIMove(testAIMove());
-                            
-                            
-                        //else
-//                            runAIMove(token);
-                        /*
-                        Color tmp = playerYellow ? Color.YELLOW : Color.RED;
-                        token.setColorInGame(tmp);
-                        //System.out.println("clicked");
-                        player = !player;
-                        System.out.println(token.getID());
-                        refreshBoard();
-                        */
+                            if(hasWinner(token.getXindex(), token.getYindex(), 1)){
+                                JOptionPane.showMessageDialog(null, "¡You win - Sometimes luck favors the dumbest!");
+                                cleanBoard();
+                                return;
+
+                            }
+                            tokenAI= testAIMove();
+                            runAIMove(tokenAI);
+                            if(hasWinner(tokenAI.getXindex(), tokenAI.getYindex(), -1)){
+                                JOptionPane.showMessageDialog(null, "¡I win - I'm smarter than you!");
+                                cleanBoard();
+                                return;
+                            }
                     }
                     
                     @Override
@@ -143,25 +144,20 @@ public class MainBoard extends javax.swing.JFrame {
         System.out.println(boardString());
     }
     
-    
-    
-    //Ai Board Functions
-    // Player = 1
-    // AI = -1
-    
     private void runPlayerMove(TokenView tv){
         //TokenView tv = hash_tokens.get(xy);
         tv.setColorInGame(getPlayerColor());
         columnMoves[tv.getYindex()] = columnMoves[tv.getYindex()]+1;
-        System.out.println("Final Heuristic Player: "+getHeuristicValue(tv.getYindex(), player));
+        //System.out.println("Final Heuristic Player: "+getHeuristicValue(tv.getYindex(), player));
         player = !player;
         System.out.println("Player: Xindex: "+tv.getXindex()+" | Yindex: "+tv.getYindex());
-        aiboard[tv.getXindex()][tv.getYindex()] = 1;
+        aiboard[tv.getXindex()][tv.getYindex()] = 1; // el jugador le dio click a ese token
         refreshBoard();
     }
     
     private void runAIMove(TokenView tv){
-        tv.setColorInGame(getAIColor());
+        tv.setColorInGame(getAIColor(
+        ));
         columnMoves[tv.getYindex()] = columnMoves[tv.getYindex()]+1;
         System.out.println("AI: Final Heuristic AI: "+getHeuristicValue(tv.getYindex(), player));
         player = !player;
@@ -170,7 +166,7 @@ public class MainBoard extends javax.swing.JFrame {
         refreshBoard();
     }
     
-    //**************************************************
+    //*********************** SON LOS MOVIMIENTOS FICITICIOS PARA IR RECORRIENDO EL ARBOL ***************************
         
     private void makePlayerMove(int column){
         int row = (BOARD_HEIGHT-1)-columnMoves[column];
@@ -198,6 +194,109 @@ public class MainBoard extends javax.swing.JFrame {
         aiboard[row][column] = 0;
         columnMoves[column] = columnMoves[column] - 1;
         System.out.println("Undo AI move in: ("+row+","+column+")");
+    }
+    
+    
+    // *************************************** FUNCIONES SENCILLAS **********************************************
+    
+    private boolean hasWinner(int x, int y, int ficha){
+        
+        int hrv=0, hlv=0, vdv=0, vuv=0, nev=0, sev=0, swv=0, nwh=0;    
+        //Right
+        if(y<=(BOARD_WIDTH-4) && y >= 0){
+            for(int i=y; i<=y+3;i++){
+                if(aiboard[x][i]==ficha){
+                    hrv++;
+                }
+            }
+            if(hrv==4) return true;
+        }
+        
+        //Left
+        if(y>=(BOARD_WIDTH-5)&& y<=(BOARD_WIDTH-1)){
+            for(int i=y; i>=y-3;i--){
+                if(aiboard[x][i]==ficha){
+                    hlv++;
+                }
+            }
+             if(hlv==4) return true;
+        }
+        
+        //Down
+        if(x >= 0 && x<=(BOARD_WIDTH-4)){
+            for(int i=x; i<=x+3;i++){
+                if(aiboard[i][y]==ficha){        //Nobody has played that position
+                    vdv++;
+                }
+            }
+            if(vdv==4) return true;
+        }
+        
+        //Up
+        if(x<=(BOARD_WIDTH-1) && x>=(BOARD_WIDTH-5)){
+            for(int i=x; i>=x-3;i--){               
+                if(aiboard[i][y]==ficha){        //Nobody has played that position
+                    vuv++;
+                }
+            }
+            if(vuv==4) return true;
+        }
+       
+      
+        //RightUp
+        if (x<=(BOARD_WIDTH-1) && x>=(BOARD_WIDTH-5) && y<=(BOARD_WIDTH-4) && y >= 0 ){
+
+            int j = y;
+            for(int i=x; i>=x-3;i--){
+                
+                if(aiboard[i][j]==ficha){        //Nobody has played that position
+                    nev++;
+                }
+                j++;
+            }
+            if (nev==4) return true;
+        }
+        
+        //RightDown
+        if(x >= 0 && x<=(BOARD_WIDTH-4) && y<=(BOARD_WIDTH-4) && y >= 0){
+            int j = y;
+            for(int i=x; i<=x+3;i++){             
+                if(aiboard[i][j]==ficha){        //Nobody has played that position
+                    sev++;
+                }
+               j++;
+            }
+            if(sev == 4) return true;
+        }
+        
+        
+        //LeftDown
+        if(x >= 0 && x<=(BOARD_WIDTH-4) && y>=(BOARD_WIDTH-5)&& y<=(BOARD_WIDTH-1)){
+            int j = y;
+            for(int i=x; i<=x+3;i++){
+               if(aiboard[i][j]==ficha){        //Nobody has played that position
+                    swv++;
+               }
+                j--;
+            }
+            if(swv==4) return true;
+        }
+        
+        
+        //LeftUp
+        if(x<=(BOARD_WIDTH-1) && x>=(BOARD_WIDTH-5) && y>=(BOARD_WIDTH-5)&& y<=(BOARD_WIDTH-1)){
+            int j = y;
+            for(int i=x; i>=x-3;i--){                            
+                if(aiboard[i][j]==ficha){        //Nobody has played that position
+                  
+                    nwh++;
+                }
+                j--;
+            }
+            if(nwh==4) return true;
+        }
+        
+    return false;
     }
     
     private Color getPlayerColor(){
@@ -454,63 +553,10 @@ public class MainBoard extends javax.swing.JFrame {
                 j--;
             }
         }
-            
-        /*
-        int ah_p1 = 0;
-        int ah_p2 = 0;
-        int ah_p3 = 0;
-        
-        int hh_p = hlv_p+hrv_p;
-        int vh_p = vuv_p+vdv_p;
-        int od_p = nev_p+swv_p;
-        int md_p = sev_p+nwv_p;
-        
-        if(hh_p==1) ah_p1++;
-        if(vh_p==1) ah_p1++;
-        if(od_p==1) ah_p1++;
-        if(md_p==1) ah_p1++;
-        
-        if(hh_p==2) ah_p2++;
-        if(vh_p==2) ah_p2++;
-        if(od_p==2) ah_p2++;
-        if(md_p==2) ah_p2++;
-                
-        if(hh_p==3) ah_p3++;
-        if(vh_p==3) ah_p3++;
-        if(od_p==3) ah_p3++;
-        if(md_p==3) ah_p3++;
-        */
                 
         int max = Math.max((hlv_p+hrv_p), (vuv_p+vdv_p));
         max = Math.max(max, (nev_p+swv_p));
         max = Math.max(max, (sev_p+nwv_p));
-        
-        /*
-        int ah_n1 = 0;
-        int ah_n2 = 0;
-        int ah_n3 = 0;
-        
-        int hh_n = hlv_n+hrv_n;
-        int vh_n = vuv_n+vdv_n;
-        int od_n = nev_n+swv_n;
-        int md_n = sev_n+nwv_n;
-        
-        if(hh_n==1) ah_n1++;
-        if(vh_n==1) ah_n1++;
-        if(od_n==1) ah_n1++;
-        if(md_n==1) ah_n1++;
-        
-        if(hh_n==2) ah_n2++;
-        if(vh_n==2) ah_n2++;
-        if(od_n==2) ah_n2++;
-        if(md_n==2) ah_n2++;
-                
-        if(hh_n==3) ah_n3++;
-        if(vh_n==3) ah_n3++;
-        if(od_n==3) ah_n3++;
-        if(md_n==3) ah_n3++;
-        */
-        
         
         int min = Math.min((hlv_n+hrv_n),(vuv_n+vdv_n));
         min = Math.min(min,(nev_n+swv_n));
@@ -533,7 +579,7 @@ public class MainBoard extends javax.swing.JFrame {
         double fact2 = 1.0 + extraPlayer;
         
         if(max == 3 || min ==-3){
-            System.out.println("WTF");
+            System.out.println("TAPANDO 3");
             System.out.println("Horizontal: "+(hlv_p+hrv_p)+"|"+(hlv_n+hrv_n));
             System.out.println("Vertical: "+vdv_p+"|"+vdv_n);
             System.out.println("Diag. princ: "+(nev_p+swv_p)+"|"+(nev_n+swv_n));
@@ -548,10 +594,7 @@ public class MainBoard extends javax.swing.JFrame {
                 return 500+DEFAULT_DEPTH+1;
             if(min == -3)
                 return 500+DEFAULT_DEPTH;
-        }
-        
-        
-        
+        }     
         System.out.println(boardString());
 
         return ((double)max*fact1 + Math.abs((double)min*fact2)); //+ hwl + hwr + vwd;
@@ -564,15 +607,19 @@ public class MainBoard extends javax.swing.JFrame {
         
     }
     
+    
+    // FUNCIÓN QUE RETORNA EL TOKEN QUE DEBE DAR LA PC
+    
     private TokenView testAIMove(){
-        double MAX = 500;
-        double MIN = -500;
+        double MAX = 500; // ES ALPHA PARA LA PC
+        double MIN = -500; // ES BETA PARA EL JUGADOR
         int x = 7;
         int y = 0;
         double val = Double.MAX_VALUE;
         double maxval = 500;
-        double values[] = new double[8];
-        double hs[] = new double [8];
+        double values[] = new double[8]; //las heuristicas acumuladas de los nodos hijos de cada una de las 8 opciones del
+        // turno de la PC
+        double hs[] = new double [8]; // la heuristica de la 1era capa de la PC 
         
         ArrayList<String> l_values = new ArrayList<>();
         ArrayList<String> l = new ArrayList<>();
@@ -652,11 +699,10 @@ public class MainBoard extends javax.swing.JFrame {
     
     double alphabeta(int depth, double alpha, double beta, boolean maximizingAI, int col) {
           //boolean hasWinner = board.hasWinner();
-          boolean hasWinner = false;
           
           // All these conditions lead to a
           // termination of the recursion
-          if (depth == 0 || hasWinner) {
+          if (depth == 0 ) {
               /*
               double score = 0;
               if (hasWinner) {

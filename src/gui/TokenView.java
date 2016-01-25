@@ -45,6 +45,10 @@ public class TokenView extends JComponent{
         this.id = Integer.toString(x)+Integer.toString(y);
     }
     
+    public TokenView(){
+        
+    }
+    
     public String getID(){
         return this.id;
     }
