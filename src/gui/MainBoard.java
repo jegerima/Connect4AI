@@ -674,8 +674,10 @@ public class MainBoard extends javax.swing.JFrame {
             if(mni_chk_graph.isSelected())
                 GGraph.draw(master);
         }catch(Exception e){
+            JOptionPane.showMessageDialog(null, "Graph Error. Disable the option show graph");
             System.out.println("ERROR");
             e.printStackTrace();
+            return hash_tokens.get(ab_h.get((Math.abs(new Random().nextInt())%ab_h.size())).position);
         }
         
         //Si ninguna heurisitica actual es mayor a la de alphabeta
@@ -709,15 +711,23 @@ public class MainBoard extends javax.swing.JFrame {
         
         //Arreglo que contendra las heuristicas alphabetas que hayan sido menores a las heuristicas actuales
         ArrayList<IDValue> final_mins = new ArrayList<>();
-        final_mins.add(c_max_h.get(c_max_h.size()-1));
+        //final_mins.add(c_max_h.get(c_max_h.size()-1));
         for(int t=c_max_h.size()-1; t>0; t-- ){
+            //final_mins.add(c_max_h.get(t));
             if(c_max_h.get(t-1).value<c_max_h.get(t).value){
                 IDValue removed = c_max_h.remove(t-1);
                 t = t-1;
-            }else{
-                final_mins.add(c_max_h.get(t));
+            //}else{
+            //    final_mins.add(c_max_h.get(t));
             }
         }
+            
+         for(IDValue t: c_max_h){
+             for(IDValue m: ab_max_h){
+                 if(t.position.contentEquals(m.position))
+                     final_mins.add(m);
+             }
+         }
         
         System.out.println(c_max_h.size()+"|"+final_mins.size());
         
@@ -728,12 +738,15 @@ public class MainBoard extends javax.swing.JFrame {
         }
         
         //Si hay mas heuristicas actuales mayores, pero iguales entre si, poda para retornar la minima de las heurisicas alphabeta (Random Size)
+        
         if(c_max_h.size()>1){
             if(final_mins.size()==1){
                 System.out.println("One element in alphabeta heuristic cutoff by h");
                 return hash_tokens.get(final_mins.get(0).position);
             }else{
                 Collections.sort(final_mins, new IDValueComparator());
+                for(IDValue idv: final_mins)
+                    System.out.println(idv.position+"|"+idv.value);
                 int counter =1;
                 for(int i=0; i< final_mins.size()-1; i++){
                     if(final_mins.get(i+1).value>final_mins.get(i).value){
@@ -970,6 +983,9 @@ public class MainBoard extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Connect4 - IA Games");
+        setMaximumSize(new java.awt.Dimension(430, 555));
+        setMinimumSize(new java.awt.Dimension(430, 555));
+        setResizable(false);
 
         javax.swing.GroupLayout pnl_general_infoLayout = new javax.swing.GroupLayout(pnl_general_info);
         pnl_general_info.setLayout(pnl_general_infoLayout);
